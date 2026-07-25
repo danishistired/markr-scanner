@@ -21,7 +21,7 @@ export interface RegistrationData {
 export interface DeviceCheckResult {
   registered: boolean;
   blocked?: boolean;
-  data?: RegistrationData;
+  data?: Record<string, string>;
   message?: string;
 }
 
