@@ -20,8 +20,13 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA"],
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "package": "com.dahahanish.markrscanner"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,6 +41,11 @@
       [
         "expo-secure-store"
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2e2f5ba7-2bd8-4b6e-b5f1-3f6bc395ab5c"
+      }
+    }
   }
 }
