@@ -5,11 +5,9 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
-  Dimensions,
+  Platform,
 } from 'react-native';
 import { RegistrationData, AppScreen } from '../types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface HomeScreenProps {
   registration: RegistrationData;
@@ -19,10 +17,9 @@ interface HomeScreenProps {
 /**
  * Home screen — post-login landing page.
  * Shows student account info and a CTA to open the scanner.
- * Minimalist dark design with DotGothic16 pixel font.
+ * Minimalist dark design with DotGothic16 pixel font and PWA identity badge.
  */
 export function HomeScreen({ registration, onNavigate }: HomeScreenProps) {
-  // Staggered fade-in animations for each element
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const headerTranslateY = useRef(new Animated.Value(20)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -61,13 +58,14 @@ export function HomeScreen({ registration, onNavigate }: HomeScreenProps) {
     ]).start();
   }, [headerOpacity, headerTranslateY, cardOpacity, cardTranslateY, buttonOpacity, buttonTranslateY, footerOpacity]);
 
-  // Extract initials for the avatar
   const initials = registration.student_name
     .split(' ')
     .map((w) => w[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+  const isWebPWA = Platform.OS === 'web' || registration.device_fingerprint.startsWith('pwa_');
 
   return (
     <View style={styles.container}>
@@ -116,7 +114,16 @@ export function HomeScreen({ registration, onNavigate }: HomeScreenProps) {
           <InfoRow label="email" value={registration.student_email} />
           <InfoRow label="phone" value={registration.student_phone} />
           <InfoRow label="section" value={registration.student_section} />
+          {registration.is_otp_verified && (
+            <InfoRow label="identity" value="✓ OTP Verified" />
+          )}
         </View>
+
+        {isWebPWA && (
+          <View style={styles.securityBadge}>
+            <Text style={styles.securityBadgeText}>🔐 Web Crypto Device Signature Bound</Text>
+          </View>
+        )}
       </Animated.View>
 
       {/* Scan button */}
@@ -139,14 +146,12 @@ export function HomeScreen({ registration, onNavigate }: HomeScreenProps) {
       {/* Footer */}
       <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
         <Text style={styles.footerText}>
-          device registered · {registration.device_fingerprint.slice(0, 8)}
+          device registered · {registration.device_fingerprint.slice(0, 12)}
         </Text>
       </Animated.View>
     </View>
   );
 }
-
-// ── Info Row sub-component ──────────────────────────────────────
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -159,8 +164,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -169,7 +172,6 @@ const styles = StyleSheet.create({
     paddingTop: 72,
     paddingBottom: 32,
   },
-  // Header
   header: {
     marginBottom: 48,
   },
@@ -186,7 +188,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     letterSpacing: 1,
   },
-  // Card
   card: {
     backgroundColor: '#141416',
     borderRadius: 12,
@@ -232,13 +233,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
     letterSpacing: 0.5,
   },
-  // Divider
   divider: {
     height: 1,
     backgroundColor: '#1E1E22',
     marginVertical: 20,
   },
-  // Info grid
   infoGrid: {
     gap: 14,
   },
@@ -263,7 +262,19 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginLeft: 16,
   },
-  // Scan button
+  securityBadge: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1E1E22',
+    alignItems: 'center',
+  },
+  securityBadgeText: {
+    fontFamily: 'DotGothic16',
+    fontSize: 10,
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
   scanButton: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -283,7 +294,6 @@ const styles = StyleSheet.create({
     color: '#09090B',
     letterSpacing: 1,
   },
-  // Footer
   footer: {
     marginTop: 'auto',
     alignItems: 'center',

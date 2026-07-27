@@ -13,6 +13,7 @@ export interface RegistrationData {
   student_phone: string;
   student_section: string;
   device_fingerprint: string;
+  is_otp_verified?: boolean;
 }
 
 /**
@@ -54,4 +55,14 @@ export interface ValidateResponse {
 export interface ScanResult {
   type: 'success' | 'error';
   message: string;
+}
+
+/**
+ * OTP Verification State
+ */
+export interface OTPState {
+  sent: boolean;
+  code: string;
+  verified: boolean;
+  error?: string;
 }

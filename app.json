@@ -29,7 +29,14 @@
       "package": "com.dahahanish.markrscanner"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "markr - Attendance Scanner PWA",
+      "shortName": "markr PWA",
+      "themeColor": "#09090B",
+      "backgroundColor": "#09090B",
+      "display": "standalone",
+      "orientation": "portrait",
+      "bundler": "metro"
     },
     "plugins": [
       [
