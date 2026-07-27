@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 
+import { useFonts } from './src/lib/useFonts';
 import { LoadingScreen } from './src/screens/LoadingScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
+import { HomeScreen } from './src/screens/HomeScreen';
 import { ScannerScreen } from './src/screens/ScannerScreen';
 import { BlockedScreen } from './src/screens/BlockedScreen';
 
@@ -14,12 +16,15 @@ import { AppScreen, RegistrationData, DeviceCheckResult } from './src/types';
 
 /**
  * Root component with state machine navigation.
- * Screens: loading → register | scanner | blocked
+ * Screens: loading → register | home → scanner | blocked
  */
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('loading');
   const [fingerprint, setFingerprint] = useState<string>('');
   const [registration, setRegistration] = useState<RegistrationData | null>(null);
+
+  // Load DotGothic16 font
+  const { fontsLoaded, fontError } = useFonts();
 
   // Boot sequence: fingerprint → check registration → set screen
   useEffect(() => {
@@ -41,7 +46,7 @@ export default function App() {
           // If we have local data, allow offline usage
           if (localReg) {
             setRegistration(localReg);
-            setCurrentScreen('scanner');
+            setCurrentScreen('home');
           } else {
             setCurrentScreen('register');
           }
@@ -72,7 +77,7 @@ export default function App() {
           }
 
           setRegistration(regData);
-          setCurrentScreen('scanner');
+          setCurrentScreen('home');
         } else {
           // Not registered
           setCurrentScreen('register');
@@ -95,17 +100,23 @@ export default function App() {
     []
   );
 
+  // Hold on loading screen until fonts are ready
+  const isLoading = currentScreen === 'loading' || (!fontsLoaded && !fontError);
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      {currentScreen === 'loading' && <LoadingScreen />}
-      {currentScreen === 'register' && (
+      {isLoading && <LoadingScreen />}
+      {!isLoading && currentScreen === 'register' && (
         <RegisterScreen fingerprint={fingerprint} onNavigate={handleNavigate} />
       )}
-      {currentScreen === 'scanner' && registration && (
-        <ScannerScreen registration={registration} />
+      {!isLoading && currentScreen === 'home' && registration && (
+        <HomeScreen registration={registration} onNavigate={handleNavigate} />
       )}
-      {currentScreen === 'blocked' && <BlockedScreen />}
+      {!isLoading && currentScreen === 'scanner' && registration && (
+        <ScannerScreen registration={registration} onNavigate={handleNavigate} />
+      )}
+      {!isLoading && currentScreen === 'blocked' && <BlockedScreen />}
     </View>
   );
 }

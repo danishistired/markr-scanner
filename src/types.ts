@@ -1,7 +1,7 @@
 /**
  * Application screen states for the state machine navigation.
  */
-export type AppScreen = 'loading' | 'register' | 'scanner' | 'blocked';
+export type AppScreen = 'loading' | 'register' | 'home' | 'scanner' | 'blocked';
 
 /**
  * Student registration data stored locally and in Supabase.

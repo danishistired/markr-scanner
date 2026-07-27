@@ -46,13 +46,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   wordmark: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 32,
     color: '#FFFFFF',
     letterSpacing: 2,
   },
   subtitle: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 12,
     color: '#71717A',
     marginTop: 12,

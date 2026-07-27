@@ -124,7 +124,7 @@ export function RegisterScreen({ fingerprint, onNavigate }: RegisterScreenProps)
       }
 
       await saveRegistration(registration);
-      onNavigate('scanner', registration);
+      onNavigate('home', registration);
     } catch (err) {
       Alert.alert('error', 'connection failed. check your network and try again.');
       setSubmitting(false);
@@ -282,13 +282,13 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   wordmark: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 28,
     color: '#FFFFFF',
     letterSpacing: 2,
   },
   subtitle: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 11,
     color: '#71717A',
     marginTop: 4,
@@ -310,14 +310,14 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 14,
     color: '#09090B',
     fontWeight: '600',
     letterSpacing: 1,
   },
   fingerprint: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 10,
     color: '#3F3F46',
     textAlign: 'center',
@@ -336,13 +336,13 @@ const fieldStyles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 11,
     color: '#71717A',
     letterSpacing: 0.5,
   },
   error: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 10,
     color: '#EF4444',
     letterSpacing: 0.5,
@@ -354,7 +354,7 @@ const fieldStyles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 14,
     color: '#FFFFFF',
     letterSpacing: 0.5,

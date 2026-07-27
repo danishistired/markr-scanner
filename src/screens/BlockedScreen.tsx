@@ -27,14 +27,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   title: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 18,
     color: '#71717A',
     letterSpacing: 1,
     marginBottom: 16,
   },
   message: {
-    fontFamily: 'monospace',
+    fontFamily: 'DotGothic16',
     fontSize: 13,
     color: '#3F3F46',
     textAlign: 'center',
