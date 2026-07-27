@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { RegistrationData, ScanResult, ValidateResponse, AppScreen } from '../types';
+import { Sanitize, isValidValidateResponse } from '../lib/security';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
 const DEBOUNCE_MS = 5000;
@@ -336,17 +337,24 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
     async ({ data }: { data: string }) => {
       if (isProcessing) return;
 
+      // OWASP A03: Sanitize and validate QR token before any processing
+      const sanitizedToken = Sanitize.qrToken(data);
+      if (!sanitizedToken) {
+        // Silently ignore malformed/oversized QR codes
+        return;
+      }
+
       // Debounce: ignore same QR data within 5 seconds
       const now = Date.now();
       if (
         lastScanRef.current &&
-        lastScanRef.current.data === data &&
+        lastScanRef.current.data === sanitizedToken &&
         now - lastScanRef.current.time < DEBOUNCE_MS
       ) {
         return;
       }
 
-      lastScanRef.current = { data, time: now };
+      lastScanRef.current = { data: sanitizedToken, time: now };
       setIsProcessing(true);
 
       try {
@@ -354,16 +362,28 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: data,
-            name: registration.student_name,
+            token: sanitizedToken,
+            // OWASP A01: Bind device fingerprint to every scan — server can verify
+            device_fingerprint: registration.device_fingerprint,
             uid: registration.student_uid,
-            email: registration.student_email,
-            phone: registration.student_phone,
             section: registration.student_section,
           }),
         });
 
-        const json: ValidateResponse = await response.json();
+        if (!response.ok) {
+          showResult({ type: 'error', message: 'server error · try again' });
+          return;
+        }
+
+        const rawJson: unknown = await response.json();
+
+        // OWASP A04: Runtime type guard — never blindly trust API shape
+        if (!isValidValidateResponse(rawJson)) {
+          showResult({ type: 'error', message: 'unexpected server response' });
+          return;
+        }
+
+        const json = rawJson as ValidateResponse;
 
         if (json.success && json.data) {
           if (json.data.valid) {
@@ -372,7 +392,7 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
             showResult({ type: 'error', message: json.data.message || 'validation failed' });
           }
         } else {
-          showResult({ type: 'error', message: json.error || 'validation failed' });
+          showResult({ type: 'error', message: 'validation failed' });
         }
       } catch {
         showResult({ type: 'error', message: 'connection error · check your network' });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 
 import { useFonts } from './src/lib/useFonts';
 import { LoadingScreen } from './src/screens/LoadingScreen';
@@ -13,6 +13,7 @@ import { getDeviceFingerprint } from './src/lib/fingerprint';
 import { getRegistration, saveRegistration } from './src/lib/storage';
 import { supabase } from './src/lib/supabase';
 import { AppScreen, RegistrationData, DeviceCheckResult } from './src/types';
+import { isValidDeviceCheckResult, isInsecureContext } from './src/lib/security';
 
 /**
  * Root component with state machine navigation.
@@ -22,6 +23,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('loading');
   const [fingerprint, setFingerprint] = useState<string>('');
   const [registration, setRegistration] = useState<RegistrationData | null>(null);
+  const [insecureCtx, setInsecureCtx] = useState(false);
 
   // Load DotGothic16 font
   const { fontsLoaded, fontError } = useFonts();
@@ -30,12 +32,23 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        // OWASP A02: Warn on HTTP non-localhost contexts
+        if (Platform.OS === 'web' && isInsecureContext()) {
+          setInsecureCtx(true);
+          // Still proceed — warn in UI but don't block entirely
+        }
+
         // 1. Get device fingerprint
         const fp = await getDeviceFingerprint();
+        // Guard: reject empty fingerprint
+        if (!fp || fp.length < 8) {
+          setCurrentScreen('register');
+          return;
+        }
         setFingerprint(fp);
 
-        // 2. Check local storage first for fast startup
-        const localReg = await getRegistration();
+        // 2. Check local storage first for fast startup (pass fingerprint for decryption)
+        const localReg = await getRegistration(fp);
 
         // 3. Check Supabase for authoritative state
         const { data, error } = await supabase.rpc('get_device_registration', {
@@ -50,6 +63,12 @@ export default function App() {
           } else {
             setCurrentScreen('register');
           }
+          return;
+        }
+
+        // OWASP A04: Runtime type validation before casting
+        if (!isValidDeviceCheckResult(data)) {
+          setCurrentScreen('register');
           return;
         }
 
@@ -71,9 +90,9 @@ export default function App() {
             device_fingerprint: fp,
           };
 
-          // Sync local data with server data
+          // Sync local data with server data (pass fingerprint for encryption)
           if (!localReg && result.data) {
-            await saveRegistration(regData);
+            await saveRegistration(regData, fp);
           }
 
           setRegistration(regData);
@@ -106,9 +125,13 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      {isLoading && <LoadingScreen />}
+      {isLoading && <LoadingScreen insecureContext={insecureCtx} />}
       {!isLoading && currentScreen === 'register' && (
-        <RegisterScreen fingerprint={fingerprint} onNavigate={handleNavigate} />
+        <RegisterScreen
+          fingerprint={fingerprint}
+          onNavigate={handleNavigate}
+          insecureContext={insecureCtx}
+        />
       )}
       {!isLoading && currentScreen === 'home' && registration && (
         <HomeScreen registration={registration} onNavigate={handleNavigate} />
