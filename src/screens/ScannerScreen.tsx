@@ -57,9 +57,10 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
   // Auto-dismiss timer
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Request camera permission on mount
+  // Request camera permission on mount — only once permission state has loaded
   useEffect(() => {
-    if (!permission?.granted) {
+    // permission is null while loading; wait until it resolves
+    if (permission !== null && !permission.granted && permission.canAskAgain) {
       requestPermission();
     }
   }, [permission, requestPermission]);
