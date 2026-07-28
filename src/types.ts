@@ -5,6 +5,8 @@ export type AppScreen = 'loading' | 'register' | 'home' | 'scanner' | 'blocked';
 
 /**
  * Student registration data stored locally and in Supabase.
+ * Note: is_otp_verified is intentionally optional — it is NOT stored to disk.
+ * The server (Supabase RPC) is the authoritative source of truth.
  */
 export interface RegistrationData {
   student_name: string;
@@ -27,17 +29,6 @@ export interface DeviceCheckResult {
 }
 
 /**
- * Result from the register_device RPC call.
- */
-export interface RegisterDeviceResult {
-  success: boolean;
-  already_registered?: boolean;
-  error?: string;
-  message?: string;
-  data?: Record<string, unknown>;
-}
-
-/**
  * Response from the QR validate API endpoint.
  */
 export interface ValidateResponse {
@@ -55,14 +46,4 @@ export interface ValidateResponse {
 export interface ScanResult {
   type: 'success' | 'error';
   message: string;
-}
-
-/**
- * OTP Verification State
- */
-export interface OTPState {
-  sent: boolean;
-  code: string;
-  verified: boolean;
-  error?: string;
 }
