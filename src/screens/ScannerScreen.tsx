@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { RegistrationData, ScanResult, ValidateResponse, AppScreen } from '../types';
+import { Sanitize, isValidValidateResponse } from '../lib/security';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
 const DEBOUNCE_MS = 5000;
 const RESULT_DISPLAY_MS = 3500;
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIEWFINDER_SIZE = SCREEN_WIDTH * 0.65;
 
 interface ScannerScreenProps {
@@ -45,7 +46,6 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const overlayScale = useRef(new Animated.Value(0.8)).current;
   const iconScale = useRef(new Animated.Value(0)).current;
-  const iconRotation = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(0)).current;
   const ringOpacity = useRef(new Animated.Value(1)).current;
   const ring2Scale = useRef(new Animated.Value(0)).current;
@@ -57,9 +57,10 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
   // Auto-dismiss timer
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Request camera permission on mount
+  // Request camera permission on mount — only once permission state has loaded
   useEffect(() => {
-    if (!permission?.granted) {
+    // permission is null while loading; wait until it resolves
+    if (permission !== null && !permission.granted && permission.canAskAgain) {
       requestPermission();
     }
   }, [permission, requestPermission]);
@@ -137,7 +138,6 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
     overlayOpacity.setValue(0);
     overlayScale.setValue(0.8);
     iconScale.setValue(0);
-    iconRotation.setValue(0);
     ringScale.setValue(0);
     ringOpacity.setValue(1);
     ring2Scale.setValue(0);
@@ -145,7 +145,7 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
     messageOpacity.setValue(0);
     messageTranslateY.setValue(20);
     shakeAnim.setValue(0);
-  }, [overlayOpacity, overlayScale, iconScale, iconRotation, ringScale, ringOpacity, ring2Scale, ring2Opacity, messageOpacity, messageTranslateY, shakeAnim]);
+  }, [overlayOpacity, overlayScale, iconScale, ringScale, ringOpacity, ring2Scale, ring2Opacity, messageOpacity, messageTranslateY, shakeAnim]);
 
   const animateSuccess = useCallback(() => {
     // Overlay fade in
@@ -336,17 +336,24 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
     async ({ data }: { data: string }) => {
       if (isProcessing) return;
 
+      // OWASP A03: Sanitize and validate QR token before any processing
+      const sanitizedToken = Sanitize.qrToken(data);
+      if (!sanitizedToken) {
+        // Silently ignore malformed/oversized QR codes
+        return;
+      }
+
       // Debounce: ignore same QR data within 5 seconds
       const now = Date.now();
       if (
         lastScanRef.current &&
-        lastScanRef.current.data === data &&
+        lastScanRef.current.data === sanitizedToken &&
         now - lastScanRef.current.time < DEBOUNCE_MS
       ) {
         return;
       }
 
-      lastScanRef.current = { data, time: now };
+      lastScanRef.current = { data: sanitizedToken, time: now };
       setIsProcessing(true);
 
       try {
@@ -354,16 +361,28 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: data,
-            name: registration.student_name,
+            token: sanitizedToken,
+            // OWASP A01: Bind device fingerprint to every scan — server can verify
+            device_fingerprint: registration.device_fingerprint,
             uid: registration.student_uid,
-            email: registration.student_email,
-            phone: registration.student_phone,
             section: registration.student_section,
           }),
         });
 
-        const json: ValidateResponse = await response.json();
+        if (!response.ok) {
+          showResult({ type: 'error', message: 'server error · try again' });
+          return;
+        }
+
+        const rawJson: unknown = await response.json();
+
+        // OWASP A04: Runtime type guard — never blindly trust API shape
+        if (!isValidValidateResponse(rawJson)) {
+          showResult({ type: 'error', message: 'unexpected server response' });
+          return;
+        }
+
+        const json = rawJson as ValidateResponse;
 
         if (json.success && json.data) {
           if (json.data.valid) {
@@ -372,7 +391,7 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
             showResult({ type: 'error', message: json.data.message || 'validation failed' });
           }
         } else {
-          showResult({ type: 'error', message: json.error || 'validation failed' });
+          showResult({ type: 'error', message: 'validation failed' });
         }
       } catch {
         showResult({ type: 'error', message: 'connection error · check your network' });

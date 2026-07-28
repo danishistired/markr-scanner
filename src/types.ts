@@ -5,6 +5,8 @@ export type AppScreen = 'loading' | 'register' | 'home' | 'scanner' | 'blocked';
 
 /**
  * Student registration data stored locally and in Supabase.
+ * Note: is_otp_verified is intentionally optional — it is NOT stored to disk.
+ * The server (Supabase RPC) is the authoritative source of truth.
  */
 export interface RegistrationData {
   student_name: string;
@@ -13,6 +15,7 @@ export interface RegistrationData {
   student_phone: string;
   student_section: string;
   device_fingerprint: string;
+  is_otp_verified?: boolean;
 }
 
 /**
@@ -23,17 +26,6 @@ export interface DeviceCheckResult {
   blocked?: boolean;
   data?: Record<string, string>;
   message?: string;
-}
-
-/**
- * Result from the register_device RPC call.
- */
-export interface RegisterDeviceResult {
-  success: boolean;
-  already_registered?: boolean;
-  error?: string;
-  message?: string;
-  data?: Record<string, unknown>;
 }
 
 /**
