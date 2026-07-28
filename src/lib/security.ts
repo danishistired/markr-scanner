@@ -85,12 +85,42 @@ export function isValidRegisterResult(data: unknown): data is {
 export function isValidDeviceCheckResult(data: unknown): data is {
   registered: boolean;
   blocked?: boolean;
+  allow_reregistration?: boolean;
+  reregistration_request?: { status: string; admin_notes?: string | null; created_at: string } | null;
   data?: Record<string, string>;
   message?: string;
 } {
   if (!data || typeof data !== 'object') return false;
   const d = data as Record<string, unknown>;
   return typeof d.registered === 'boolean';
+}
+
+/**
+ * Type guard for submit_reregistration_request RPC response.
+ */
+export function isValidSubmitRequestResult(data: unknown): data is {
+  success: boolean;
+  error?: string;
+  request_id?: string;
+  created_at?: string;
+} {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.success === 'boolean';
+}
+
+/**
+ * Type guard for get_reregistration_status RPC response.
+ */
+export function isValidReregistrationStatus(data: unknown): data is {
+  has_request: boolean;
+  status?: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string | null;
+  created_at?: string;
+} {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.has_request === 'boolean';
 }
 
 export function isValidValidateResponse(data: unknown): data is {
