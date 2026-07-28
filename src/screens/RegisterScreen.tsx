@@ -70,18 +70,23 @@ export function RegisterScreen({ fingerprint, onNavigate, insecureContext = fals
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
   const [otpSession, setOtpSession] = useState<OTPSession | null>(null);
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] = useState(300); // 5 min in seconds — avoids 0-flash before first tick
   const [lockoutCountdown, setLockoutCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Keep a ref to latest session so the interval doesn't close over a stale value
+  const otpSessionRef = useRef<OTPSession | null>(null);
 
-  // Countdown ticker
+  // Countdown ticker — only restarts when otpSession changes to a new one
   useEffect(() => {
     if (!otpSession) return;
+    otpSessionRef.current = otpSession;
     if (countdownRef.current) clearInterval(countdownRef.current);
 
     countdownRef.current = setInterval(() => {
-      setCountdown(otpSecondsRemaining(otpSession));
-      setLockoutCountdown(lockoutSecondsRemaining(otpSession));
+      const s = otpSessionRef.current;
+      if (!s) return;
+      setCountdown(otpSecondsRemaining(s));
+      setLockoutCountdown(lockoutSecondsRemaining(s));
     }, 1000);
 
     return () => {
@@ -187,6 +192,7 @@ export function RegisterScreen({ fingerprint, onNavigate, insecureContext = fals
       const phone = Sanitize.phone(form.phone);
       const result = await verifyOTP(sanitizedCode, otpSession, phone, fingerprint);
       setOtpSession(result.updatedSession);
+      otpSessionRef.current = result.updatedSession; // keep ref in sync for interval
 
       if (!result.valid) {
         if (result.reason === 'expired') {

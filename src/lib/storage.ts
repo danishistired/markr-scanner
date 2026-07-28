@@ -15,9 +15,15 @@ const REGISTRATION_KEY = 'markr_registration_data';
 const SALT_KEY = 'markr_enc_salt';
 const PBKDF2_ITERATIONS = 100_000;
 
-/** Convert ArrayBuffer to base64 string */
+/** Convert ArrayBuffer to base64 string — safe for any buffer size (no spread) */
 function toBase64(buffer: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  // Process in 1024-byte chunks to avoid call stack limits
+  for (let i = 0; i < bytes.length; i += 1024) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 1024));
+  }
+  return btoa(binary);
 }
 
 /** Convert base64 string to Uint8Array */

@@ -3,14 +3,15 @@ import * as Application from 'expo-application';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { getWebCryptoDeviceSignature } from './crypto';
+import { getWebCryptoDeviceSignature, clearCryptoCache } from './crypto';
 
 const FINGERPRINT_KEY = 'markr_device_fingerprint';
 
 /**
  * On Web/PWA, the canonical store is IndexedDB (managed by crypto.ts).
- * localStorage is NOT used as a fingerprint cache for web — that would create
- * a stale duplicate that diverges from IndexedDB on subsequent launches.
+ * No localStorage is used for the fingerprint on web — that caused a
+ * stale-copy divergence bug where localStorage held an old value that
+ * diverged from the IndexedDB copy on subsequent launches.
  *
  * On native (iOS/Android), SecureStore is the canonical store.
  */
@@ -43,7 +44,6 @@ async function setNativeFingerprint(value: string): Promise<void> {
  */
 async function computeFingerprint(): Promise<string> {
   if (Platform.OS === 'web') {
-    // Web / PWA: Web Crypto API + IndexedDB persistence (fully managed by crypto.ts)
     return await getWebCryptoDeviceSignature();
   }
 
@@ -69,30 +69,43 @@ async function computeFingerprint(): Promise<string> {
 }
 
 /**
+ * Check if a signature is a valid, fully-derived web crypto signature.
+ * Must be: 'pwa_' prefix + 64-char SHA-256 hex = exactly 68 chars.
+ * Rejects error-state fallbacks (pwa_err_, pwa_fb_).
+ */
+function isGoodSignature(sig: string): boolean {
+  if (!sig.startsWith('pwa_') || sig.length < 68) return false;
+  if (sig.startsWith('pwa_err_') || sig.startsWith('pwa_fb_')) return false;
+  return true;
+}
+
+/**
  * Get the device fingerprint.
  *
  * Web/PWA:
- *   → Always delegates to getWebCryptoDeviceSignature() which handles its own
- *     IndexedDB caching. No localStorage involved (avoids stale-copy divergence bug).
+ *   → Delegates to getWebCryptoDeviceSignature() (IndexedDB-cached).
+ *   → If the returned signature is an error/fallback state, clears the
+ *     IndexedDB cache (static import of clearCryptoCache — NOT dynamic import)
+ *     and retries once. Returns the result regardless.
  *
  * Native (iOS/Android):
  *   → Reads from SecureStore; computes from hardware if missing.
  */
 export async function getDeviceFingerprint(): Promise<string> {
-  // Web: fully delegated to crypto.ts (IndexedDB cache is inside getWebCryptoDeviceSignature)
   if (Platform.OS === 'web') {
     const sig = await getWebCryptoDeviceSignature();
-    // Guard: reject empty or error-state signatures — force a fresh recompute
-    if (!sig || sig.startsWith('pwa_err_') || sig.length < 20) {
-      // Clear the bad cached value and try once more
+
+    if (!isGoodSignature(sig)) {
+      // Clear the bad cached value and try once more (static import — always available)
       try {
-        const { clearCryptoCache } = await import('./crypto');
         await clearCryptoCache();
       } catch {
-        // clearCryptoCache may not be available in all builds
+        // Best effort — clearCryptoCache itself won't throw but guard anyway
       }
+      // Return result of retry regardless — if still an error state, App.tsx guards it
       return await getWebCryptoDeviceSignature();
     }
+
     return sig;
   }
 
