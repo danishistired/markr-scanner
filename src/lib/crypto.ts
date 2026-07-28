@@ -179,9 +179,16 @@ async function getBrowserHardwareTraits(): Promise<string> {
 
 /**
  * Validate that a stored signature is non-empty and structurally valid.
+ * A real pwa_ signature is: 'pwa_' + 64-char SHA-256 hex = 68 chars minimum.
+ * Error-state fallbacks like 'pwa_err_...' or 'pwa_fb_...' are shorter and rejected.
  */
 function isValidSignature(sig: unknown): sig is string {
-  return typeof sig === 'string' && sig.length > 8;
+  if (typeof sig !== 'string') return false;
+  // Must start with 'pwa_' and be a full SHA-256 derived signature (68+ chars)
+  if (!sig.startsWith('pwa_') || sig.length < 68) return false;
+  // Must NOT be an error-state fallback
+  if (sig.startsWith('pwa_err_') || sig.startsWith('pwa_fb_')) return false;
+  return true;
 }
 
 /**
@@ -249,5 +256,28 @@ export async function getWebCryptoDeviceSignature(): Promise<string> {
     } catch {
       return `pwa_err_${Date.now().toString(36)}`;
     }
+  }
+}
+
+/**
+ * Clear the cached device signature from IndexedDB.
+ * Called by fingerprint.ts when a corrupt/error-state signature is detected,
+ * forcing a clean recompute on the next call to getWebCryptoDeviceSignature().
+ */
+export async function clearCryptoCache(): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const r1 = store.delete(FINGERPRINT_ALIAS);
+      const r2 = store.delete(KEY_ALIAS);
+      let done = 0;
+      const finish = () => { if (++done === 2) resolve(); };
+      r1.onsuccess = finish; r1.onerror = finish;
+      r2.onsuccess = finish; r2.onerror = finish;
+    });
+  } catch {
+    // Ignore — best effort
   }
 }

@@ -15,7 +15,7 @@ import { Sanitize, isValidValidateResponse } from '../lib/security';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
 const DEBOUNCE_MS = 5000;
 const RESULT_DISPLAY_MS = 3500;
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIEWFINDER_SIZE = SCREEN_WIDTH * 0.65;
 
 interface ScannerScreenProps {
@@ -46,7 +46,6 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const overlayScale = useRef(new Animated.Value(0.8)).current;
   const iconScale = useRef(new Animated.Value(0)).current;
-  const iconRotation = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(0)).current;
   const ringOpacity = useRef(new Animated.Value(1)).current;
   const ring2Scale = useRef(new Animated.Value(0)).current;
@@ -138,7 +137,6 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
     overlayOpacity.setValue(0);
     overlayScale.setValue(0.8);
     iconScale.setValue(0);
-    iconRotation.setValue(0);
     ringScale.setValue(0);
     ringOpacity.setValue(1);
     ring2Scale.setValue(0);
@@ -146,7 +144,7 @@ export function ScannerScreen({ registration, onNavigate }: ScannerScreenProps) 
     messageOpacity.setValue(0);
     messageTranslateY.setValue(20);
     shakeAnim.setValue(0);
-  }, [overlayOpacity, overlayScale, iconScale, iconRotation, ringScale, ringOpacity, ring2Scale, ring2Opacity, messageOpacity, messageTranslateY, shakeAnim]);
+  }, [overlayOpacity, overlayScale, iconScale, ringScale, ringOpacity, ring2Scale, ring2Opacity, messageOpacity, messageTranslateY, shakeAnim]);
 
   const animateSuccess = useCallback(() => {
     // Overlay fade in

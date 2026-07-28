@@ -12,7 +12,7 @@ import { BlockedScreen } from './src/screens/BlockedScreen';
 import { getDeviceFingerprint } from './src/lib/fingerprint';
 import { getRegistration, saveRegistration } from './src/lib/storage';
 import { supabase } from './src/lib/supabase';
-import { AppScreen, RegistrationData, DeviceCheckResult } from './src/types';
+import { AppScreen, RegistrationData } from './src/types';
 import { isValidDeviceCheckResult, isInsecureContext } from './src/lib/security';
 
 /**
@@ -72,7 +72,7 @@ export default function App() {
           return;
         }
 
-        const result = data as DeviceCheckResult;
+        const result = data;
 
         if (result.registered) {
           if (result.blocked) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,9 @@ import { saveRegistration } from '../lib/storage';
 import { RegistrationData, AppScreen } from '../types';
 import { Sanitize, isValidRegisterResult } from '../lib/security';
 import { generateOTP, verifyOTP, otpSecondsRemaining, lockoutSecondsRemaining, OTPSession } from '../lib/otp';
+
+// React Native / Expo global — not in TypeScript lib by default
+declare var __DEV__: boolean;
 
 interface RegisterScreenProps {
   fingerprint: string;
@@ -446,8 +449,8 @@ interface FormFieldProps {
   value: string;
   error?: string;
   onChangeText: (text: string) => void;
-  keyboardType?: TextInput['props']['keyboardType'];
-  autoCapitalize?: TextInput['props']['autoCapitalize'];
+  keyboardType?: ComponentProps<typeof TextInput>['keyboardType'];
+  autoCapitalize?: ComponentProps<typeof TextInput>['autoCapitalize'];
   maxLength?: number;
 }
 
