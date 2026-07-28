@@ -15,11 +15,10 @@ const REGISTRATION_KEY = 'markr_registration_data';
 const SALT_KEY = 'markr_enc_salt';
 const PBKDF2_ITERATIONS = 100_000;
 
-/** Convert ArrayBuffer to base64 string — safe for any buffer size (no spread) */
-function toBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+/** Convert ArrayBuffer or Uint8Array to base64 — safe for any size (no spread) */
+function toBase64(buffer: ArrayBuffer | Uint8Array<ArrayBuffer>): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = '';
-  // Process in 1024-byte chunks to avoid call stack limits
   for (let i = 0; i < bytes.length; i += 1024) {
     binary += String.fromCharCode(...bytes.subarray(i, i + 1024));
   }
@@ -35,7 +34,7 @@ function fromBase64(b64: string): Uint8Array {
  * Derive an AES-GCM key from the device fingerprint using PBKDF2.
  * Uses a random salt stored alongside the ciphertext.
  */
-async function deriveKey(fingerprint: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(fingerprint: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const baseKey = await crypto.subtle.importKey(
     'raw',
@@ -64,8 +63,10 @@ async function deriveKey(fingerprint: string, salt: Uint8Array): Promise<CryptoK
  */
 async function encryptString(plaintext: string, fingerprint: string): Promise<string> {
   const encoder = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  // Cast to Uint8Array<ArrayBuffer> — crypto.getRandomValues returns ArrayBufferLike
+  // which TypeScript 5.x doesn't accept as BufferSource without explicit narrowing
+  const salt = crypto.getRandomValues(new Uint8Array(16)) as unknown as Uint8Array<ArrayBuffer>;
+  const iv = crypto.getRandomValues(new Uint8Array(12)) as unknown as Uint8Array<ArrayBuffer>;
   const key = await deriveKey(fingerprint, salt);
 
   const ciphertext = await crypto.subtle.encrypt(
@@ -85,8 +86,8 @@ async function decryptString(payload: string, fingerprint: string): Promise<stri
     const parts = payload.split('.');
     if (parts.length !== 3) return null;
 
-    const salt = fromBase64(parts[0]);
-    const iv = fromBase64(parts[1]);
+    const salt = fromBase64(parts[0]) as unknown as Uint8Array<ArrayBuffer>;
+    const iv = fromBase64(parts[1]) as unknown as Uint8Array<ArrayBuffer>;
     const ciphertext = fromBase64(parts[2]);
 
     const key = await deriveKey(fingerprint, salt);
