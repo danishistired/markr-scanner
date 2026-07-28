@@ -88,7 +88,7 @@ async function decryptString(payload: string, fingerprint: string): Promise<stri
 
     const salt = fromBase64(parts[0]) as unknown as Uint8Array<ArrayBuffer>;
     const iv = fromBase64(parts[1]) as unknown as Uint8Array<ArrayBuffer>;
-    const ciphertext = fromBase64(parts[2]);
+    const ciphertext = fromBase64(parts[2]) as unknown as Uint8Array<ArrayBuffer>;
 
     const key = await deriveKey(fingerprint, salt);
     const decrypted = await crypto.subtle.decrypt(
