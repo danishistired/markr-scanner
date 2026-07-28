@@ -1,7 +1,14 @@
 /**
  * Application screen states for the state machine navigation.
  */
-export type AppScreen = 'loading' | 'register' | 'home' | 'scanner' | 'blocked';
+export type AppScreen =
+  | 'loading'
+  | 'register'
+  | 'home'
+  | 'scanner'
+  | 'blocked'
+  | 'already_registered'   // Device is locked — user needs admin approval
+  | 'request_pending';     // Re-registration ticket submitted, waiting for admin
 
 /**
  * Student registration data stored locally and in Supabase.
@@ -24,8 +31,20 @@ export interface RegistrationData {
 export interface DeviceCheckResult {
   registered: boolean;
   blocked?: boolean;
+  allow_reregistration?: boolean;
+  reregistration_request?: ReregistrationRequestStatus | null;
   data?: Record<string, string>;
   message?: string;
+}
+
+/**
+ * Status of a re-registration request returned by get_device_registration
+ * and get_reregistration_status.
+ */
+export interface ReregistrationRequestStatus {
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string | null;
+  created_at: string;
 }
 
 /**

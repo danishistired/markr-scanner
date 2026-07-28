@@ -236,7 +236,11 @@ export function RegisterScreen({ fingerprint, onNavigate, insecureContext = fals
           onNavigate('blocked');
           return;
         }
-        Alert.alert('error', 'registration failed.');
+        if (rpcData.error === 'already_registered' || rpcData.already_registered) {
+          onNavigate('already_registered');
+          return;
+        }
+        Alert.alert('error', rpcData.message || 'registration failed.');
         setSubmitting(false);
         return;
       }
