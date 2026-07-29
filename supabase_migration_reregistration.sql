@@ -249,16 +249,12 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'reason_too_short');
   END IF;
 
-  -- Device must exist
+  -- If device exists and is blocked, reject
   SELECT * INTO existing
     FROM public.device_registrations
    WHERE device_fingerprint = p_fingerprint;
 
-  IF NOT FOUND THEN
-    RETURN json_build_object('success', false, 'error', 'device_not_registered');
-  END IF;
-
-  IF existing.is_blocked THEN
+  IF FOUND AND existing.is_blocked THEN
     RETURN json_build_object('success', false, 'error', 'device_blocked');
   END IF;
 
