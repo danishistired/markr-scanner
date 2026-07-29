@@ -191,6 +191,26 @@ BEGIN
    WHERE device_fingerprint = p_fingerprint;
 
   IF NOT FOUND THEN
+    -- Device not in device_registrations — check if they have a pending request
+    -- (e.g. UID conflict prevented insert, but they submitted a re-reg request)
+    SELECT * INTO req
+      FROM public.registration_requests
+     WHERE device_fingerprint = p_fingerprint
+       AND status IN ('pending', 'approved', 'rejected')
+     ORDER BY created_at DESC
+     LIMIT 1;
+
+    IF req.id IS NOT NULL THEN
+      RETURN json_build_object(
+        'registered',             false,
+        'reregistration_request', json_build_object(
+          'status',      req.status,
+          'admin_notes', req.admin_notes,
+          'created_at',  req.created_at
+        )
+      );
+    END IF;
+
     RETURN json_build_object('registered', false);
   END IF;
 
