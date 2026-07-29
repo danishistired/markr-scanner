@@ -281,8 +281,83 @@ export function RegisterScreen({ fingerprint, onNavigate, insecureContext = fals
   }
 
   const isWebPWA = Platform.OS === 'web' || fingerprint.startsWith('pwa_');
+  // OTP vars kept for future re-enable
   const isLocked = lockoutCountdown > 0;
   const isExpired = otpSent && countdown === 0 && !isLocked;
+  void isLocked; void isExpired; // suppress unused warnings while OTP UI is disabled
+
+  /** Direct registration — OTP step bypassed for now */
+  async function handleRegister() {
+    if (!validate()) return;
+    if (!fingerprint || fingerprint.length < 8) {
+      Alert.alert('error', 'device signature not ready. please restart the app.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const phone = Sanitize.phone(form.phone);
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc('register_device', {
+        p_fingerprint: fingerprint,
+        p_name: Sanitize.name(form.name),
+        p_uid: Sanitize.uid(form.uid),
+        p_email: Sanitize.email(form.email),
+        p_phone: phone,
+        p_section: Sanitize.section(form.section),
+      });
+
+      if (rpcError) {
+        Alert.alert('error', 'registration failed. try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (!isValidRegisterResult(rpcData)) {
+        Alert.alert('error', 'unexpected server response.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (!rpcData.success) {
+        if (rpcData.error === 'device_blocked') {
+          onNavigate('blocked');
+          return;
+        }
+        if (rpcData.error === 'already_registered' || rpcData.already_registered) {
+          onNavigate('already_registered');
+          return;
+        }
+        Alert.alert('error', rpcData.message || 'registration failed.');
+        setSubmitting(false);
+        return;
+      }
+
+      const registration: RegistrationData = {
+        student_name: Sanitize.name(form.name),
+        student_uid: Sanitize.uid(form.uid),
+        student_email: Sanitize.email(form.email),
+        student_phone: phone,
+        student_section: Sanitize.section(form.section),
+        device_fingerprint: fingerprint,
+      };
+
+      if (rpcData.already_registered && rpcData.data) {
+        const d = rpcData.data as Record<string, string>;
+        if (d.student_name) registration.student_name = Sanitize.name(d.student_name);
+        if (d.student_uid) registration.student_uid = Sanitize.uid(d.student_uid);
+        if (d.student_email) registration.student_email = Sanitize.email(d.student_email);
+        if (d.student_phone) registration.student_phone = Sanitize.phone(d.student_phone);
+        if (d.student_section) registration.student_section = Sanitize.section(d.student_section);
+      }
+
+      await saveRegistration(registration, fingerprint);
+      onNavigate('home', registration);
+    } catch {
+      Alert.alert('error', 'connection failed. check your network.');
+      setSubmitting(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView
@@ -312,8 +387,7 @@ export function RegisterScreen({ fingerprint, onNavigate, insecureContext = fals
           )}
         </View>
 
-        {!otpSent ? (
-          /* Step 1: Details */
+        {/* Step 1: Details */}
           <View style={styles.form}>
             <FormField
               label="name"
@@ -364,84 +438,17 @@ export function RegisterScreen({ fingerprint, onNavigate, insecureContext = fals
 
             <TouchableOpacity
               style={[styles.button, submitting && styles.buttonDisabled]}
-              onPress={handleSendOTP}
+              onPress={handleRegister}
               disabled={submitting}
               activeOpacity={0.8}
             >
               {submitting ? (
                 <ActivityIndicator size="small" color="#09090B" />
               ) : (
-                <Text style={styles.buttonText}>send verification code →</Text>
+                <Text style={styles.buttonText}>register →</Text>
               )}
             </TouchableOpacity>
           </View>
-        ) : (
-          /* Step 2: OTP Verification */
-          <View style={styles.otpCard}>
-            <Text style={styles.otpTitle}>enter verification code</Text>
-            <Text style={styles.otpSubtitle}>
-              6-digit code sent to {Sanitize.phone(form.phone)}
-            </Text>
-
-            {/* Expiry / lockout status */}
-            {isLocked ? (
-              <View style={styles.timerBadge}>
-                <Text style={styles.timerBadgeLocked}>🔒 locked for {lockoutCountdown}s</Text>
-              </View>
-            ) : isExpired ? (
-              <View style={styles.timerBadge}>
-                <Text style={styles.timerBadgeExpired}>⏰ code expired</Text>
-              </View>
-            ) : (
-              <View style={styles.timerBadge}>
-                <Text style={styles.timerBadgeActive}>⏱ expires in {countdown}s</Text>
-              </View>
-            )}
-
-            <View style={styles.otpInputContainer}>
-              <TextInput
-                style={[styles.otpInput, !!otpError && styles.otpInputError]}
-                placeholder="------"
-                placeholderTextColor="#3F3F46"
-                value={otpInput}
-                onChangeText={(v) => {
-                  setOtpInput(v.replace(/\D/g, '').slice(0, 6));
-                  setOtpError('');
-                }}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
-                editable={!isLocked}
-              />
-              {!!otpError && <Text style={styles.errorText}>{otpError}</Text>}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, (submitting || isLocked || isExpired) && styles.buttonDisabled]}
-              onPress={handleVerifyAndRegister}
-              disabled={submitting || isLocked || isExpired}
-              activeOpacity={0.8}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#09090B" />
-              ) : (
-                <Text style={styles.buttonText}>verify & bind device →</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.resendButton}
-              onPress={() => {
-                setOtpSent(false);
-                setOtpInput('');
-                setOtpError('');
-                setOtpSession(null);
-              }}
-            >
-              <Text style={styles.resendButtonText}>← change details / resend</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <Text style={styles.fingerprint}>
           device: {fingerprint.slice(0, 16)}...
