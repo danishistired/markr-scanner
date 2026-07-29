@@ -146,6 +146,21 @@ BEGIN
     );
   END IF;
 
+  -- UID uniqueness: reject if this student_uid is already registered on ANY device
+  PERFORM 1
+    FROM public.device_registrations
+   WHERE student_uid = p_uid
+     AND is_blocked = FALSE;
+
+  IF FOUND THEN
+    RETURN json_build_object(
+      'success',            false,
+      'error',              'already_registered',
+      'message',            'This UID is already registered to another device. Contact an admin to request re-registration.',
+      'already_registered', true
+    );
+  END IF;
+
   -- First-time registration
   INSERT INTO public.device_registrations
     (device_fingerprint, student_name, student_uid, student_email, student_phone, student_section)
@@ -180,6 +195,26 @@ BEGIN
    WHERE device_fingerprint = p_fingerprint;
 
   IF NOT FOUND THEN
+    -- Device not in device_registrations — check if they have a pending request
+    -- (e.g. UID conflict prevented insert, but they submitted a re-reg request)
+    SELECT * INTO req
+      FROM public.registration_requests
+     WHERE device_fingerprint = p_fingerprint
+       AND status IN ('pending', 'approved', 'rejected')
+     ORDER BY created_at DESC
+     LIMIT 1;
+
+    IF req.id IS NOT NULL THEN
+      RETURN json_build_object(
+        'registered',             false,
+        'reregistration_request', json_build_object(
+          'status',      req.status,
+          'admin_notes', req.admin_notes,
+          'created_at',  req.created_at
+        )
+      );
+    END IF;
+
     RETURN json_build_object('registered', false);
   END IF;
 
@@ -238,16 +273,12 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'reason_too_short');
   END IF;
 
-  -- Device must exist
+  -- If device exists and is blocked, reject
   SELECT * INTO existing
     FROM public.device_registrations
    WHERE device_fingerprint = p_fingerprint;
 
-  IF NOT FOUND THEN
-    RETURN json_build_object('success', false, 'error', 'device_not_registered');
-  END IF;
-
-  IF existing.is_blocked THEN
+  IF FOUND AND existing.is_blocked THEN
     RETURN json_build_object('success', false, 'error', 'device_blocked');
   END IF;
 
