@@ -120,7 +120,19 @@ export default function App() {
           setRegistration(regData);
           setCurrentScreen('home');
         } else {
-          // Not registered
+          // Not registered — but may have a pending re-registration request
+          // (e.g. UID conflict: device was never inserted but user submitted a request)
+          if (result.reregistration_request) {
+            const reqStatus = result.reregistration_request.status;
+            if (reqStatus === 'pending' || reqStatus === 'rejected') {
+              setCurrentScreen('request_pending');
+              return;
+            }
+            if (reqStatus === 'approved') {
+              setCurrentScreen('register');
+              return;
+            }
+          }
           setCurrentScreen('register');
         }
       } catch {
