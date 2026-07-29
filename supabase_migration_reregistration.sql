@@ -105,7 +105,11 @@ BEGIN
     END IF;
 
     -- Admin has approved a one-shot re-registration
-    IF existing.allow_reregistration THEN
+    IF existing.allow_reregistration OR EXISTS (
+      SELECT 1 FROM public.registration_requests
+       WHERE device_fingerprint = p_fingerprint
+         AND status = 'approved'
+    ) THEN
       -- Atomically: reset flag, update student details
       UPDATE public.device_registrations
          SET student_name          = p_name,

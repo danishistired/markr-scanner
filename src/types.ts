@@ -8,7 +8,23 @@ export type AppScreen =
   | 'scanner'
   | 'blocked'
   | 'already_registered'   // Device is locked — user needs admin approval
-  | 'request_pending';     // Re-registration ticket submitted, waiting for admin
+  | 'request_pending'      // Re-registration ticket submitted, waiting for admin
+  | 'admin';               // Admin Panel for reviewing re-registration requests
+
+export interface AdminRequestItem {
+  id: string;
+  device_fingerprint: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  student_name?: string | null;
+  student_uid?: string | null;
+  student_email?: string | null;
+  student_phone?: string | null;
+  student_section?: string | null;
+}
 
 /**
  * Student registration data stored locally and in Supabase.

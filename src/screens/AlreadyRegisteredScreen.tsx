@@ -39,6 +39,27 @@ export function AlreadyRegisteredScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Check if a request already exists on mount
+  React.useEffect(() => {
+    if (!fingerprint) return;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc('get_reregistration_status', {
+          p_fingerprint: fingerprint,
+        });
+        if (data && data.has_request) {
+          if (data.status === 'pending') {
+            onNavigate('request_pending');
+          } else if (data.status === 'approved') {
+            onNavigate('register');
+          }
+        }
+      } catch {
+        // ignore check errors on mount
+      }
+    })();
+  }, [fingerprint, onNavigate]);
+
   function sanitizeReason(raw: string): string {
     // Strip control chars, trim, cap at 500 chars
     // eslint-disable-next-line no-control-regex

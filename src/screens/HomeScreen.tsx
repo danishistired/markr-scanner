@@ -141,6 +141,14 @@ export function HomeScreen({ registration, onNavigate }: HomeScreenProps) {
           <Text style={styles.scanButtonIcon}>⊞</Text>
           <Text style={styles.scanButtonText}>scan qr code</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.reRegisterButton}
+          activeOpacity={0.8}
+          onPress={() => onNavigate('already_registered')}
+        >
+          <Text style={styles.reRegisterButtonText}>request re-registration / account change →</Text>
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Footer */}
@@ -148,6 +156,14 @@ export function HomeScreen({ registration, onNavigate }: HomeScreenProps) {
         <Text style={styles.footerText}>
           device registered · {registration.device_fingerprint.slice(0, 12)}
         </Text>
+        <TouchableOpacity
+          onPress={() => onNavigate('admin')}
+          style={{ marginTop: 8 }}
+        >
+          <Text style={[styles.footerText, { color: '#52525B', textDecorationLine: 'underline' }]}>
+            admin portal →
+          </Text>
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );
@@ -293,6 +309,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#09090B',
     letterSpacing: 1,
+  },
+  reRegisterButton: {
+    marginTop: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#27272A',
+    backgroundColor: '#141416',
+  },
+  reRegisterButtonText: {
+    fontFamily: 'DotGothic16',
+    fontSize: 12,
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
   },
   footer: {
     marginTop: 'auto',

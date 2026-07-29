@@ -99,8 +99,12 @@ BEGIN
       );
     END IF;
 
-    -- Admin unlocked re-registration for this device
-    IF existing.allow_reregistration THEN
+    -- Admin unlocked re-registration for this device (via allow_reregistration flag or approved request)
+    IF existing.allow_reregistration OR EXISTS (
+      SELECT 1 FROM public.registration_requests
+       WHERE device_fingerprint = p_fingerprint
+         AND status = 'approved'
+    ) THEN
       UPDATE public.device_registrations
          SET student_name          = p_name,
              student_uid           = p_uid,
@@ -287,3 +291,99 @@ BEGIN
   );
 END;
 $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 3. ADMIN PANEL FUNCTIONS
+-- ─────────────────────────────────────────────────────────────
+
+-- 1. admin_get_all_requests
+-- Retrieves all re-registration requests along with student registration details.
+CREATE OR REPLACE FUNCTION public.admin_get_all_requests()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT json_agg(
+    json_build_object(
+      'id',                 r.id,
+      'device_fingerprint', r.device_fingerprint,
+      'reason',             r.reason,
+      'status',             r.status,
+      'admin_notes',        r.admin_notes,
+      'created_at',         r.created_at,
+      'updated_at',         r.updated_at,
+      'student_name',       d.student_name,
+      'student_uid',        d.student_uid,
+      'student_email',      d.student_email,
+      'student_phone',      d.student_phone,
+      'student_section',    d.student_section
+    ) ORDER BY r.created_at DESC
+  ) INTO result
+  FROM public.registration_requests r
+  LEFT JOIN public.device_registrations d ON r.device_fingerprint = d.device_fingerprint;
+
+  RETURN COALESCE(result, '[]'::json);
+END;
+$$;
+
+-- 2. admin_approve_request
+-- Approves request AND DELETES user registration from device_registrations table
+-- to allow the user to register again.
+CREATE OR REPLACE FUNCTION public.admin_approve_request(p_request_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  target_fp TEXT;
+BEGIN
+  SELECT device_fingerprint INTO target_fp
+    FROM public.registration_requests
+   WHERE id = p_request_id;
+
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'error', 'request_not_found');
+  END IF;
+
+  -- Delete user info from device_registrations to allow new registration
+  DELETE FROM public.device_registrations
+   WHERE device_fingerprint = target_fp;
+
+  -- Mark request status as approved
+  UPDATE public.registration_requests
+     SET status     = 'approved',
+         updated_at = NOW()
+   WHERE id = p_request_id;
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+
+-- 3. admin_reject_request
+-- Rejects a request with optional admin notes.
+CREATE OR REPLACE FUNCTION public.admin_reject_request(
+  p_request_id UUID,
+  p_notes      TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.registration_requests
+     SET status      = 'rejected',
+         admin_notes  = p_notes,
+         updated_at   = NOW()
+   WHERE id = p_request_id;
+
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'error', 'request_not_found');
+  END IF;
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+

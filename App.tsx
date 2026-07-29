@@ -10,6 +10,7 @@ import { ScannerScreen } from './src/screens/ScannerScreen';
 import { BlockedScreen } from './src/screens/BlockedScreen';
 import { AlreadyRegisteredScreen } from './src/screens/AlreadyRegisteredScreen';
 import { RequestPendingScreen } from './src/screens/RequestPendingScreen';
+import { AdminScreen } from './src/screens/AdminScreen';
 
 import { getDeviceFingerprint } from './src/lib/fingerprint';
 import { getRegistration, saveRegistration } from './src/lib/storage';
@@ -19,7 +20,7 @@ import { isValidDeviceCheckResult, isInsecureContext } from './src/lib/security'
 
 /**
  * Root component with state machine navigation.
- * Screens: loading → register | home → scanner | blocked | already_registered | request_pending
+ * Screens: loading → register | home → scanner | blocked | already_registered | request_pending | admin
  */
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('loading');
@@ -34,10 +35,21 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        // Direct route check for /admin on Web
+        if (
+          Platform.OS === 'web' &&
+          typeof window !== 'undefined' &&
+          (window.location.pathname === '/admin' ||
+            window.location.pathname.endsWith('/admin') ||
+            window.location.hash.includes('admin'))
+        ) {
+          setCurrentScreen('admin');
+          return;
+        }
+
         // OWASP A02: Warn on HTTP non-localhost contexts
         if (Platform.OS === 'web' && isInsecureContext()) {
           setInsecureCtx(true);
-          // Still proceed — warn in UI but don't block entirely
         }
 
         // 1. Get device fingerprint
@@ -167,6 +179,9 @@ export default function App() {
       )}
       {!isLoading && currentScreen === 'request_pending' && (
         <RequestPendingScreen fingerprint={fingerprint} onNavigate={handleNavigate} />
+      )}
+      {!isLoading && currentScreen === 'admin' && (
+        <AdminScreen onNavigate={handleNavigate} />
       )}
     </View>
   );
