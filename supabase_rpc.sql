@@ -323,7 +323,7 @@ BEGIN
     ) ORDER BY r.created_at DESC
   ) INTO result
   FROM public.registration_requests r
-  LEFT JOIN public.device_registrations d ON r.device_fingerprint = d.device_fingerprint;
+  LEFT JOIN public.device_registrations d ON TRIM(r.device_fingerprint) = TRIM(d.device_fingerprint);
 
   RETURN COALESCE(result, '[]'::json);
 END;
