@@ -142,6 +142,21 @@ BEGIN
     );
   END IF;
 
+  -- UID uniqueness: reject if this student_uid is already registered on ANY device
+  PERFORM 1
+    FROM public.device_registrations
+   WHERE student_uid = p_uid
+     AND is_blocked = FALSE;
+
+  IF FOUND THEN
+    RETURN json_build_object(
+      'success',            false,
+      'error',              'already_registered',
+      'message',            'This UID is already registered to another device. Contact an admin to request re-registration.',
+      'already_registered', true
+    );
+  END IF;
+
   -- First-time registration
   INSERT INTO public.device_registrations
     (device_fingerprint, student_name, student_uid, student_email, student_phone, student_section)
